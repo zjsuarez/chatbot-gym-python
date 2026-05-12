@@ -1,9 +1,27 @@
 import os
 import faiss
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from openai import OpenAI
 
-print("[INFO] Cargando modelo de embeddings de IA...")
-modelo_embeddings = SentenceTransformer('all-MiniLM-L6-v2')
+print("[INFO] Conectando con LM Studio para embeddings...")
+# Configuramos el cliente OpenAI igual que en main.py
+cliente_ai = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="api-key-no-necesaria")
+
+def obtener_embeddings(textos):
+    # Llama a LM Studio para obtener los vectores
+    try:
+        respuesta = cliente_ai.embeddings.create(
+            input=textos,
+            model="text-embedding-bge-small-en-v1.5" # LM Studio suele usar el modelo que esté cargado
+        )
+        print(f"[ÉXITO] Embeddings generados correctamente para {len(textos)} fragmento(s).")
+        # Extraemos los embeddings y los convertimos en un array de numpy
+        return np.array([item.embedding for item in respuesta.data], dtype=np.float32)
+    except Exception as e:
+        print(f"\n[ERROR] Falló la creación de embeddings con LM Studio.")
+        print("¿Está iniciada la API en LM Studio y tienes un modelo de Text Embedding cargado?")
+        print(f"Detalle del error: {e}\n")
+        return None
 
 def cargar_documentos(ruta_carpeta):
     textos = []
@@ -23,7 +41,13 @@ def crear_indice_faiss(chunks):
     if not chunks: # Si no hay documentos, devolvemos vacío
         return None, []
         
-    embeddings = modelo_embeddings.encode(chunks)
+    print(f"[INFO] Creando índice vectorial para {len(chunks)} documentos...")
+    embeddings = obtener_embeddings(chunks)
+    
+    if embeddings is None:
+        print("[ERROR] No se pudo crear el índice de FAISS porque no hay embeddings.")
+        return None, []
+        
     dimension = embeddings.shape[1]
     indice = faiss.IndexFlatL2(dimension)
     indice.add(embeddings)
@@ -38,7 +62,11 @@ def recuperar_chunks(pregunta, k=2):
     if not indice_faiss:
         return "" # Si no hay base de datos, no devuelve nada
         
-    vector_pregunta = modelo_embeddings.encode([pregunta])
+    vector_pregunta = obtener_embeddings([pregunta])
+    if vector_pregunta is None:
+        print("[ERROR] No se pudo obtener el contexto (fallo en embedding de la pregunta).")
+        return ""
+        
     distancias, indices = indice_faiss.search(vector_pregunta, k)
     
     contexto = []
