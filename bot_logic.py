@@ -1,8 +1,27 @@
 def preprocesar_input(texto):
     texto = texto.lower()
     texto = " ".join(texto.split())
-    # Diccionario de typos de gym en inglés
-    ERRORES = {"protien": "protein", "hypertrofy": "hypertrophy", "bicep": "biceps"}
+    # Diccionario de typos comunes de gym en inglés para profesionalizar el preprocesamiento
+    ERRORES = {
+        "protien": "protein", 
+        "hypertrofy": "hypertrophy", 
+        "bicep": "biceps",
+        "tricep": "triceps",
+        "excersize": "exercise",
+        "excercise": "exercise",
+        "dumbell": "dumbbell",
+        "dumble": "dumbbell",
+        "creatin": "creatine",
+        "suplement": "supplement",
+        "squots": "squats",
+        "calorys": "calories",
+        "testosteron": "testosterone",
+        "wheigt": "weight",
+        "strech": "stretch",
+        "deficet": "deficit",
+        "mussle": "muscle",
+        "musle": "muscle"
+    }
     
     for mal, bien in ERRORES.items():
         texto = texto.replace(mal, bien)

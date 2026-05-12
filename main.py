@@ -10,7 +10,7 @@ cliente_ai = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="api-key-no-nec
 def llamar_llm(contexto, pregunta_usuario):
     # Aquí definimos las reglas estrictas para el RAG
     prompt_sistema = f"""
-    You are an elite personal trainer specialized in muscle hypertrophy.
+    You are an elite personal trainer specialized in muscle hypertrophy and fitness training.
     
     Context retrieved from our database:
     {contexto}
@@ -18,12 +18,17 @@ def llamar_llm(contexto, pregunta_usuario):
     RULES:
     1. Answer ONLY based on the context provided above.
     2. If the context does not contain the answer, reply EXACTLY with: "I do not have enough information."
+    3. Do NOT make up any information or guess.
+    4. Keep the answer concise and to the point, ideally under 100 words.
+    5. Always maintain a professional and friendly tone, but do not add any extra commentary beyond the answer.
+    6. Do not use emojis or any other non-text elements.
+    7. If the question is unrelated to hypertrophy or fitness, reply with: "I can only answer questions related to muscle hypertrophy and fitness training."
     """
     
     try:
         # Llamada real al modelo que tienes cargado en LM Studio
         respuesta = cliente_ai.chat.completions.create(
-            model="llama-3.2-3b-instruct", # LM Studio ignora el nombre y usa el modelo que tengas cargado
+            model="dolphin3.0-llama3.1-8b", # LM Studio ignora el nombre y usa el modelo que tengas cargado
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": pregunta_usuario}
