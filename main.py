@@ -23,7 +23,7 @@ def llamar_llm(contexto, pregunta_usuario):
     try:
         # Llamada real al modelo que tienes cargado en LM Studio
         respuesta = cliente_ai.chat.completions.create(
-            model="llama-3.2-3b-instruct", # LM Studio ignora el nombre y usa el modelo que tengas cargado
+            model="dolphin3.0-llama3.1-8b", # LM Studio ignora el nombre y usa el modelo que tengas cargado
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": pregunta_usuario}
