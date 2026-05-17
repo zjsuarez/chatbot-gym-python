@@ -3,6 +3,7 @@
 
 import os
 import pickle
+import pickle
 import faiss
 import numpy as np
 from openai import OpenAI
