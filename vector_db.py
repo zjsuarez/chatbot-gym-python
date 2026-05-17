@@ -1,76 +1,107 @@
+# vector_db.py — Construcción y persistencia del índice FAISS local.
+# Ejecutar una sola vez (o cuando cambien los documentos):  python vector_db.py
+
 import os
+import pickle
 import faiss
 import numpy as np
 from openai import OpenAI
 
-print("[INFO] Conectando con LM Studio para embeddings...")
-# Configuramos el cliente OpenAI igual que en main.py
-cliente_ai = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="api-key-no-necesaria")
+# ---------------------------------------------------------------------------
+# [Fase 1: Configuración Local] - Carga de variables de entorno y preparación
+#   del índice FAISS local.
+# ---------------------------------------------------------------------------
 
-def obtener_embeddings(textos):
-    # Llama a LM Studio para obtener los vectores
+RUTA_DOCUMENTOS = "documentos"
+RUTA_INDICE     = "indice.faiss"   # Artefacto de salida
+RUTA_CHUNKS     = "chunks.pkl"     # Artefacto de salida
+MODELO_EMBED    = "text-embedding-bge-small-en-v1.5"
+
+print("[INFO] Conectando con LM Studio para embeddings...")
+_cliente = OpenAI(base_url="http://127.0.0.1:1234/v1", api_key="lm-studio")
+
+
+def obtener_embeddings(textos: list[str]) -> np.ndarray | None:
+    """Vectoriza una lista de textos con LM Studio."""
     try:
-        respuesta = cliente_ai.embeddings.create(
-            input=textos,
-            model="text-embedding-bge-small-en-v1.5" # LM Studio suele usar el modelo que esté cargado
-        )
-        print(f"[ÉXITO] Embeddings generados correctamente para {len(textos)} fragmento(s).")
-        # Extraemos los embeddings y los convertimos en un array de numpy
+        respuesta = _cliente.embeddings.create(input=textos, model=MODELO_EMBED)
+        print(f"[OK] Embeddings generados para {len(textos)} fragmento(s).")
         return np.array([item.embedding for item in respuesta.data], dtype=np.float32)
     except Exception as e:
-        print(f"\n[ERROR] Falló la creación de embeddings con LM Studio.")
-        print("¿Está iniciada la API en LM Studio y tienes un modelo de Text Embedding cargado?")
-        print(f"Detalle del error: {e}\n")
+        print(f"[ERROR] Fallo al crear embeddings: {e}")
         return None
 
-def cargar_documentos(ruta_carpeta):
-    textos = []
-    # Verificamos si la carpeta existe para evitar errores
+
+def cargar_documentos(ruta_carpeta: str) -> list[str]:
+    """Lee todos los .txt de la carpeta (y subcarpetas) y los divide en chunks."""
+    textos: list[str] = []
     if not os.path.exists(ruta_carpeta):
-        print(f"⚠️ La carpeta '{ruta_carpeta}' no existe. Por favor, créala.")
+        print(f"[AVISO] La carpeta '{ruta_carpeta}' no existe.")
         return textos
-        
-    for archivo in os.listdir(ruta_carpeta):
-        if archivo.endswith(".txt"):
-            with open(os.path.join(ruta_carpeta, archivo), 'r', encoding='utf-8') as f:
-                chunks = f.read().split('\n\n')
-                textos.extend([c.strip() for c in chunks if len(c.strip()) > 10])
+
+    for raiz, _, archivos in os.walk(ruta_carpeta):
+        for archivo in archivos:
+            if archivo.endswith(".txt"):
+                ruta = os.path.join(raiz, archivo)
+                with open(ruta, "r", encoding="utf-8", errors="ignore") as f:
+                    chunks = f.read().split("\n\n")
+                    textos.extend([c.strip() for c in chunks if len(c.strip()) > 10])
+
+    print(f"[INFO] {len(textos)} chunks cargados desde '{ruta_carpeta}'.")
     return textos
 
-def crear_indice_faiss(chunks):
-    if not chunks: # Si no hay documentos, devolvemos vacío
-        return None, []
-        
-    print(f"[INFO] Creando índice vectorial para {len(chunks)} documentos...")
+
+def construir_y_guardar_indice(chunks: list[str]) -> None:
+    """Genera embeddings, crea el índice FAISS y lo persiste en disco."""
+    if not chunks:
+        print("[ERROR] No hay chunks para indexar.")
+        return
+
+    print(f"[INFO] Construyendo índice FAISS para {len(chunks)} chunks...")
     embeddings = obtener_embeddings(chunks)
-    
     if embeddings is None:
-        print("[ERROR] No se pudo crear el índice de FAISS porque no hay embeddings.")
-        return None, []
-        
+        print("[ERROR] No se pudo construir el índice.")
+        return
+
     dimension = embeddings.shape[1]
     indice = faiss.IndexFlatL2(dimension)
     indice.add(embeddings)
-    return indice, chunks
 
-# --- INICIALIZACIÓN AUTOMÁTICA ---
-# Cuando importemos este archivo, cargará los documentos automáticamente
-mis_chunks = cargar_documentos("documentos")
-indice_faiss, base_datos_texto = crear_indice_faiss(mis_chunks)
+    faiss.write_index(indice, RUTA_INDICE)
+    with open(RUTA_CHUNKS, "wb") as f:
+        pickle.dump(chunks, f)
 
-def recuperar_chunks(pregunta, k=2):
-    if not indice_faiss:
-        return "" # Si no hay base de datos, no devuelve nada
-        
-    vector_pregunta = obtener_embeddings([pregunta])
-    if vector_pregunta is None:
-        print("[ERROR] No se pudo obtener el contexto (fallo en embedding de la pregunta).")
+    print(f"[OK] Índice guardado → '{RUTA_INDICE}' ({indice.ntotal} vectores)")
+    print(f"[OK] Chunks guardados → '{RUTA_CHUNKS}'")
+
+
+# --- Función de compatibilidad para imports desde main.py (legacy) ---
+def recuperar_chunks(pregunta: str, k: int = 3) -> str:
+    """
+    Mantiene compatibilidad con código que importe directamente desde vector_db.
+    En el flujo refactorizado, la recuperación ocurre en bot_logic.recuperar_contexto().
+    """
+    if not os.path.exists(RUTA_INDICE) or not os.path.exists(RUTA_CHUNKS):
         return ""
-        
-    distancias, indices = indice_faiss.search(vector_pregunta, k)
-    
-    contexto = []
-    for i in indices[0]:
-        if i != -1:
-            contexto.append(base_datos_texto[i])
-    return "\n".join(contexto)
+    indice = faiss.read_index(RUTA_INDICE)
+    with open(RUTA_CHUNKS, "rb") as f:
+        chunks = pickle.load(f)
+
+    vector = obtener_embeddings([pregunta])
+    if vector is None:
+        return ""
+    _, indices = indice.search(vector, k)
+    return "\n".join(chunks[i] for i in indices[0] if i != -1 and i < len(chunks))
+
+
+# ---------------------------------------------------------------------------
+# Punto de entrada: construye el índice si se ejecuta directamente
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("\n" + "=" * 50)
+    print("  📦 KAIZEN — Construcción de Índice FAISS")
+    print("=" * 50)
+    mis_chunks = cargar_documentos(RUTA_DOCUMENTOS)
+    construir_y_guardar_indice(mis_chunks)
+    print("\n✅ Listo. Ahora puedes ejecutar: python main.py")
