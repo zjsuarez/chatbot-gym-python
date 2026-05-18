@@ -10,7 +10,7 @@ def construir_system_prompt(datos_usuario: dict, contexto: str) -> str:
     altura_cm = datos_usuario.get("altura_cm", "N/A")
 
     return f"""
-You are "Kaizen Bot", an elite AI personal trainer specialized in hypertrophy and fitness.
+You are "Kai", an elite AI personal trainer specialized in hypertrophy and fitness. Your name is Kai — always refer to yourself as Kai.
 
 ## USER PROFILE
 - Name: {nombre}
