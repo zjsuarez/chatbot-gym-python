@@ -1,9 +1,21 @@
-# bot_logic.py — Pipeline orchestrator. Chains the individual layers.
+# pipeline.py — Chains the individual layers into the full RAG pipeline.
 
-from layers import preprocesar_input, cargar_indice, buscar, construir_system_prompt, llamar_llm_json, simular_procesado_backend
-from layers.config import RUTA_INDICE, RUTA_CHUNKS
+from bot.layers import (
+    preprocesar_input,
+    cargar_indice,
+    buscar,
+    construir_system_prompt,
+    llamar_llm_json,
+    simular_procesado_backend,
+)
+from bot.layers.config import RUTA_INDICE, RUTA_CHUNKS
 
 indice_faiss, base_chunks = cargar_indice(RUTA_INDICE, RUTA_CHUNKS)
+
+
+def recargar_indice() -> None:
+    global indice_faiss, base_chunks
+    indice_faiss, base_chunks = cargar_indice(RUTA_INDICE, RUTA_CHUNKS)
 
 
 def procesar_peticion(pregunta: str, datos_usuario: dict) -> dict:

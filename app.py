@@ -1,11 +1,11 @@
-# app.py — Flask web interface for Kaizen Bot.
-# Run with:  python app.py
+# app.py — Flask web interface for Kaizen Bot. Run with:  python app.py
 
 from flask import Flask, render_template, request, jsonify
-from bot_logic import procesar_peticion
-from layers import USUARIO_MOCK
+from bot.pipeline import procesar_peticion, recargar_indice
+from bot.layers import USUARIO_MOCK, cargar_documentos, construir_y_guardar_indice
+from bot.layers.config import RUTA_DOCUMENTOS
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="web/templates")
 
 
 @app.route("/")
@@ -21,6 +21,17 @@ def chat():
         return jsonify({"error": "Empty message"}), 400
     resultado = procesar_peticion(mensaje, USUARIO_MOCK)
     return jsonify(resultado)
+
+
+@app.route("/build-index", methods=["POST"])
+def build_index():
+    try:
+        chunks = cargar_documentos(RUTA_DOCUMENTOS)
+        construir_y_guardar_indice(chunks)
+        recargar_indice()
+        return jsonify({"ok": True, "chunks": len(chunks)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":

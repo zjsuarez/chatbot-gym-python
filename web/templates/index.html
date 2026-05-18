@@ -36,8 +36,11 @@
     }
     header h1 { font-size: 1.1rem; font-weight: 700; color: #f59e0b; }
     header p  { font-size: 0.75rem; color: #777; margin-top: 2px; }
-    .status-dot {
+    .header-right {
       margin-left: auto;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .status-dot {
       display: flex; align-items: center; gap: 6px;
       font-size: 0.75rem; color: #4ade80;
     }
@@ -52,6 +55,32 @@
       0%, 100% { opacity: 1; }
       50%       { opacity: 0.4; }
     }
+    #build-btn {
+      background: transparent;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #888;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    #build-btn:hover:not(:disabled) { border-color: #f59e0b; color: #f59e0b; }
+    #build-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #build-btn .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #build-toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1e1e1e; border: 1px solid #333; border-radius: 10px;
+      padding: 10px 18px; font-size: 0.82rem; color: #e2e2e2;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      white-space: nowrap; z-index: 100;
+    }
+    #build-toast.show { opacity: 1; }
+    #build-toast.ok  { border-color: #4ade80; color: #4ade80; }
+    #build-toast.err { border-color: #f87171; color: #f87171; }
 
     /* ── Messages ─────────────────────────────────────────── */
     #messages {
@@ -205,8 +234,12 @@
       <h1>Kaizen Bot</h1>
       <p>{{ usuario.nombre }} &nbsp;·&nbsp; {{ usuario.objetivo }} &nbsp;·&nbsp; nivel {{ usuario.nivel }}</p>
     </div>
-    <div class="status-dot">Online</div>
+    <div class="header-right">
+      <button id="build-btn" title="Rebuild vector index from docs/">⚙ Build Index</button>
+      <div class="status-dot">Online</div>
+    </div>
   </header>
+  <div id="build-toast"></div>
 
   <div id="messages">
     <div class="msg bot">
@@ -327,6 +360,36 @@
     sendBtn.addEventListener('click', send);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
     input.focus();
+
+    // ── Build Index ───────────────────────────────────────────
+    const buildBtn   = document.getElementById('build-btn');
+    const buildToast = document.getElementById('build-toast');
+    let toastTimer;
+
+    function showToast(msg, type) {
+      clearTimeout(toastTimer);
+      buildToast.textContent = msg;
+      buildToast.className = `show ${type}`;
+      toastTimer = setTimeout(() => { buildToast.className = ''; }, 4000);
+    }
+
+    buildBtn.addEventListener('click', async () => {
+      buildBtn.disabled = true;
+      buildBtn.innerHTML = '<span class="spin">⟳</span> Building…';
+      try {
+        const res  = await fetch('/build-index', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          showToast(`✓ Index built — ${data.chunks} chunks`, 'ok');
+        } else {
+          showToast(`✗ ${data.error}`, 'err');
+        }
+      } catch {
+        showToast('✗ Could not reach server', 'err');
+      }
+      buildBtn.disabled = false;
+      buildBtn.innerHTML = '⚙ Build Index';
+    });
   </script>
 
 </body>

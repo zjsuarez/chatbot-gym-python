@@ -2,8 +2,8 @@
 
 import os
 import faiss
-from layers import obtener_embedding, obtener_embeddings_batch, guardar_chunks, cargar_chunks
-from layers.config import RUTA_INDICE, RUTA_CHUNKS, TOP_K
+from . import obtener_embedding, obtener_embeddings_batch, guardar_chunks, cargar_chunks
+from .config import RUTA_INDICE, RUTA_CHUNKS, TOP_K
 
 
 def cargar_indice(ruta_indice: str = RUTA_INDICE, ruta_chunks: str = RUTA_CHUNKS):

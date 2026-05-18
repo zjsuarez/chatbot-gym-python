@@ -2,7 +2,7 @@
 
 import json
 from openai import OpenAI
-from layers.config import BASE_URL, API_KEY, MODELO_LLM, TEMPERATURA
+from .config import BASE_URL, API_KEY, MODELO_LLM, TEMPERATURA
 
 _cliente = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 

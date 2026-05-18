@@ -2,7 +2,7 @@
 
 import numpy as np
 from openai import OpenAI
-from layers.config import BASE_URL, API_KEY, MODELO_EMBED
+from .config import BASE_URL, API_KEY, MODELO_EMBED
 
 _cliente = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 

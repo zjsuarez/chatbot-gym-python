@@ -4,7 +4,9 @@
       "Bash(Get-ChildItem -Path \"E:\\\\chatbotgym\" -Recurse -File)",
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(git mv *)",
+      "Bash(mv documentos *)"
     ]
   }
 }
